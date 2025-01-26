@@ -1,13 +1,12 @@
-import os
-import sys
-
-from dotenv import load_dotenv
+import time, requests, datetime, hashlib, hmac, random, zlib, json, datetime
+import requests, zlib, json, time, subprocess, string, secrets, os, sys
 from fake_useragent import FakeUserAgentError, UserAgent
-
-from tiktok_uploader import Config, eprint
+from requests_auth_aws_sigv4 import AWSSigV4
+from tiktok_uploader.cookies import load_cookies_from_file
 from tiktok_uploader.Browser import Browser
 from tiktok_uploader.bot_utils import *
-from tiktok_uploader.cookies import load_cookies_from_file
+from tiktok_uploader import Config, Video, eprint
+from dotenv import load_dotenv
 
 # Load environment variables
 load_dotenv()
@@ -107,7 +106,8 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
     if not assert_success(project_url, r):
         return False
 
-
+    # get project_id
+    project_id = r.json()["project"]["project_id"]
     video_id, session_key, upload_id, crcs, upload_host, store_uri, video_auth, aws_auth = upload_to_tiktok(video,
                                                                                                             session)
 
@@ -158,6 +158,83 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
         brand = brand[:-1]
     markup_text, text_extra = convert_tags(title, session)
 
+    # Added for showing history of data changes...
+
+    # When uploading fails please check data payload is correct...
+
+    # data = {
+    # 	"upload_param": {
+    # 		"video_param": {
+    # 			"text": title,
+    # 			"text_extra": text_extra,
+    # 			"markup_text": markup_text,
+    # 			"poster_delay": 0,
+    # 		},
+    # 		"visibility_type": visibility_type,
+    # 		"allow_comment": allow_comment,
+    # 		"allow_duet": allow_duet,
+    # 		"allow_stitch": allow_stitch,
+    # 		"sound_exemption": 0,
+    # 		"geofencing_regions": [],
+    # 		"creation_id": creation_id,
+    # 		"is_uploaded_in_batch": False,
+    # 		"is_enable_playlist": False,
+    # 		"is_added_to_playlist": False,
+    # 		"tcm_params": '{"commerce_toggle_info":' + brand + "}",
+    # 		"aigc_info": {
+    # 			"aigc_label_type": ai_label
+    # 		}
+    # 	},
+    # 	"project_id": project_id,
+    # 	"draft": "",
+    # 	"single_upload_param": [],
+    # 	"video_id": video_id,
+    # 	"creation_id": creation_id,
+    # }
+
+    # data = {
+    # 	"post_common_info": {
+    # 		"creation_id": creation_id,
+    # 		"enter_post_page_from": 1,
+    # 		"post_type": 3
+    # 	},
+    # 	"feature_common_info_list": [
+    # 		{
+    # 			"geofencing_regions": [],
+    # 			"playlist_name": "",
+    # 			"playlist_id": "",
+    # 			"tcm_params": "{\"commerce_toggle_info\":{}}",
+    # 			"sound_exemption": 0,
+    # 			"anchors": [],
+    # 			"vedit_common_info": {
+    # 				"draft": "",
+    # 				"video_id": video_id
+    # 			},
+    # 			"privacy_setting_info": {
+    # 				"visibility_type": 0,
+    # 				"allow_duet": 1,
+    # 				"allow_stitch": 1,
+    # 				"allow_comment": 1
+    # 			},
+    # 			"schedule_time": schedule_time + int(time.time())
+    # 		}
+    # 	],
+    # 	"single_post_req_list": [
+    # 		{
+    # 			"batch_index": 0,
+    # 			"video_id": video_id,
+    # 			"is_long_video": 0,
+    # 			"single_post_feature_info": {
+    # 				"text": title,
+    # 				"text_extra": text_extra,
+    # 				"markup_text": title,
+    # 				"music_info": {},
+    # 				"poster_delay": 0,
+    # 			}
+    # 		}
+    # 	]
+    # }
+
     data = {
         "post_common_info": {
             "creation_id": creation_id,
@@ -203,6 +280,8 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
     uploaded = False
     while True:
         mstoken = session.cookies.get("msToken")
+        # xbogus = subprocess_jsvmp(os.path.join(os.getcwd(), "tiktok_uploader", "./x-bogus.js"), user_agent, f"app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}")
+        # /tiktok/web/project/post/v1/
         js_path = os.path.join(os.getcwd(), "tiktok_uploader", "tiktok-signature", "browser.js")
         sig_url = f"https://www.tiktok.com/api/v1/web/project/post/?app_name=tiktok_web&channel=tiktok_web&device_platform=web&aid=1988&msToken={mstoken}"
         signatures = subprocess_jsvmp(js_path, user_agent, sig_url)
