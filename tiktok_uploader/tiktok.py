@@ -106,8 +106,6 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
     if not assert_success(project_url, r):
         return False
 
-    # get project_id
-    project_id = r.json()["project"]["project_id"]
     video_id, session_key, upload_id, crcs, upload_host, store_uri, video_auth, aws_auth = upload_to_tiktok(video,
                                                                                                             session)
 
