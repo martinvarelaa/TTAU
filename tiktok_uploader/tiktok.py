@@ -1,12 +1,13 @@
-import time, requests, datetime, hashlib, hmac, random, zlib, json, datetime
-import requests, zlib, json, time, subprocess, string, secrets, os, sys
+import os
+import sys
+
+from dotenv import load_dotenv
 from fake_useragent import FakeUserAgentError, UserAgent
-from requests_auth_aws_sigv4 import AWSSigV4
-from tiktok_uploader.cookies import load_cookies_from_file
+
+from tiktok_uploader import Config, eprint
 from tiktok_uploader.Browser import Browser
 from tiktok_uploader.bot_utils import *
-from tiktok_uploader import Config, Video, eprint
-from dotenv import load_dotenv
+from tiktok_uploader.cookies import load_cookies_from_file
 
 # Load environment variables
 load_dotenv()
@@ -359,15 +360,19 @@ def upload_video(session_user, video, title, schedule_time=0, allow_comment=1, a
 def upload_to_tiktok(video_file, session):
     url = "https://www.tiktok.com/api/v1/video/upload/auth/?aid=1988"
     r = session.get(url)
+
     if not assert_success(url, r):
         return False
+
+    response = r.json()
+    print(response)
 
     aws_auth = AWSSigV4(
         "vod",
         region="ap-singapore-1",
-        aws_access_key_id=r.json()["video_token_v5"]["access_key_id"],
-        aws_secret_access_key=r.json()["video_token_v5"]["secret_acess_key"],
-        aws_session_token=r.json()["video_token_v5"]["session_token"],
+        aws_access_key_id=response["video_token_v5"]["access_key_id"],
+        aws_secret_access_key=response["video_token_v5"]["secret_acess_key"],
+        aws_session_token=response["video_token_v5"]["session_token"],
     )
     with open(os.path.join(os.getcwd(), Config.get().videos_dir, video_file), "rb") as f:
         video_content = f.read()
